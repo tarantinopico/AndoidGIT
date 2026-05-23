@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Environment
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.GitApplication
 import com.example.auth.GitHubAuthApi
 import com.example.auth.SessionManager
 import com.example.files.FileItem
@@ -31,13 +32,11 @@ sealed class UiState {
 }
 
 class GitFileManagerViewModel(application: Application) : AndroidViewModel(application) {
-    val sessionManager = SessionManager(application)
-    private val fileManager = FileManager()
-    private val gitManager = GitManager()
-
-    // Replace with your OAuth app Client ID and Secret, or securely provide them
-    private val OAUTH_CLIENT_ID = "YOUR_CLIENT_ID_HERE"
-    private val OAUTH_CLIENT_SECRET = "YOUR_CLIENT_SECRET_HERE"
+    private val container = (application as GitApplication).container
+    val sessionManager = container.sessionManager
+    private val fileManager = container.fileManager
+    private val gitManager = container.gitManager
+    private val api = container.gitHubAuthApi
 
     val patToken = sessionManager.patToken
 
@@ -56,16 +55,8 @@ class GitFileManagerViewModel(application: Application) : AndroidViewModel(appli
     private val _gitStatus = MutableStateFlow<String>("")
     val gitStatus: StateFlow<String> = _gitStatus.asStateFlow()
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl("https://github.com/")
-        .addConverterFactory(
-            MoshiConverterFactory.create(
-                Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
-            )
-        )
-        .build()
-
-    private val api = retrofit.create(GitHubAuthApi::class.java)
+    private val OAUTH_CLIENT_ID = "YOUR_CLIENT_ID_HERE"
+    private val OAUTH_CLIENT_SECRET = "YOUR_CLIENT_SECRET_HERE"
 
     init {
         loadFiles(_currentDirectory.value)
@@ -205,6 +196,43 @@ class GitFileManagerViewModel(application: Application) : AndroidViewModel(appli
                 refreshGitStatus(repo)
             } catch (e: Exception) {
                 _uiState.value = UiState.Error("Push failed: ${e.message}")
+            }
+        }
+    }
+
+    fun createFile(name: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val success = fileManager.createFile(_currentDirectory.value, name)
+            if (success) {
+                _uiState.value = UiState.Success("File created.")
+                loadFiles(_currentDirectory.value)
+            } else {
+                _uiState.value = UiState.Error("Failed to create file.")
+            }
+        }
+    }
+
+    fun createFolder(name: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val success = fileManager.createFolder(_currentDirectory.value, name)
+            if (success) {
+                _uiState.value = UiState.Success("Folder created.")
+                loadFiles(_currentDirectory.value)
+            } else {
+                _uiState.value = UiState.Error("Failed to create folder.")
+            }
+        }
+    }
+
+    fun addRemote(uri: String) {
+        val repo = _selectedGitRepo.value ?: _currentDirectory.value
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            try {
+                gitManager.addRemote(repo, "origin", uri)
+                _uiState.value = UiState.Success("Remote added.")
+            } catch (e: Exception) {
+                _uiState.value = UiState.Error("Failed to add remote: ${e.message}")
             }
         }
     }

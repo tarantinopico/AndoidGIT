@@ -68,4 +68,10 @@ class GitManager {
             "Error reading status: ${e.message}"
         }
     }
+
+    suspend fun addRemote(directory: File, name: String, uri: String) = withContext(Dispatchers.IO) {
+        Git.open(directory).use { git ->
+            git.remoteAdd().setName(name).setUri(org.eclipse.jgit.transport.URIish(uri)).call()
+        }
+    }
 }

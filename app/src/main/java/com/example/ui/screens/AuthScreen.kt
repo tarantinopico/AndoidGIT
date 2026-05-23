@@ -26,7 +26,7 @@ fun AuthScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    var tokenInput by remember { mutableStateOf(patToken) }
+    var tokenInput by remember(patToken) { mutableStateOf(patToken.ifEmpty { "" }) }
 
     LaunchedEffect(patToken) {
         if (patToken.isNotEmpty()) {

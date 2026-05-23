@@ -26,4 +26,18 @@ class FileManager {
             )
         }.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
     }
+
+    fun createFile(directory: File, name: String): Boolean {
+        val file = File(directory, name)
+        return try {
+            file.createNewFile()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun createFolder(directory: File, name: String): Boolean {
+        val folder = File(directory, name)
+        return folder.mkdirs()
+    }
 }

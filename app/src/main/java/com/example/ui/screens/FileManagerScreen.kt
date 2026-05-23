@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +27,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.background
 import com.example.files.FileItem
 import com.example.ui.viewmodels.GitFileManagerViewModel
+import com.example.ui.viewmodels.UiState
+import com.example.ui.theme.*
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
@@ -43,6 +46,27 @@ fun FileManagerScreen(
     val context = LocalContext.current
     val currentDir by viewModel.currentDirectory.collectAsStateWithLifecycle()
     val files by viewModel.files.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var createType by remember { mutableStateOf("") }
+    var nameInput by remember { mutableStateOf("") }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is UiState.Success -> {
+                snackbarHostState.showSnackbar((uiState as UiState.Success).message)
+                viewModel.clearUiState()
+            }
+            is UiState.Error -> {
+                snackbarHostState.showSnackbar((uiState as UiState.Error).message)
+                viewModel.clearUiState()
+            }
+            else -> {}
+        }
+    }
 
     var hasStoragePermission by remember {
         mutableStateOf(
@@ -69,7 +93,62 @@ fun FileManagerScreen(
         hasStoragePermission = permissionState.allPermissionsGranted
     }
 
+    if (showBottomSheet) {
+        ModalBottomSheet(onDismissRequest = { showBottomSheet = false }) {
+            Column(modifier = Modifier.padding(24.dp).padding(bottom = 32.dp)) {
+                if (createType.isEmpty()) {
+                    Text("Create New", style = MaterialTheme.typography.titleLarge)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    ListItem(
+                        headlineContent = { Text("Folder") },
+                        leadingContent = { Icon(Icons.Default.Folder, contentDescription = null, tint = FolderBg) },
+                        modifier = Modifier.clickable { createType = "Folder" }
+                    )
+                    ListItem(
+                        headlineContent = { Text("File") },
+                        leadingContent = { Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = BuildBg) },
+                        modifier = Modifier.clickable { createType = "File" }
+                    )
+                    ListItem(
+                        headlineContent = { Text("Initialize Git Repository") },
+                        leadingContent = { Icon(Icons.Default.Folder, contentDescription = null, tint = StatusGreen) },
+                        modifier = Modifier.clickable { createType = "Git" }
+                    )
+                } else {
+                    Text("New $createType", style = MaterialTheme.typography.titleLarge)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        label = { Text(if (createType == "Git") "Remote URL (Optional)" else "Name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            when (createType) {
+                                "Folder" -> viewModel.createFolder(nameInput)
+                                "File" -> viewModel.createFile(nameInput)
+                                "Git" -> {
+                                    viewModel.initRepository(currentDir)
+                                    if (nameInput.isNotBlank()) viewModel.addRemote(nameInput)
+                                }
+                            }
+                            showBottomSheet = false
+                            createType = ""
+                            nameInput = ""
+                        }
+                    ) {
+                        Text("Create")
+                    }
+                }
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(currentDir.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -81,6 +160,17 @@ fun FileManagerScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            if (hasStoragePermission) {
+                FloatingActionButton(onClick = { 
+                    createType = ""
+                    nameInput = ""
+                    showBottomSheet = true 
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add")
+                }
+            }
         }
     ) { paddingValues ->
         if (!hasStoragePermission) {
@@ -117,23 +207,34 @@ fun FileManagerScreen(
                     viewModel.loadFiles(currentDir)
                 }
             }
+            
+            if (files.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("This folder is empty.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            } else {
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-            ) {
-                items(files) { file ->
-                    FileRow(file = file, onClick = {
-                        if (file.isDirectory) {
-                            viewModel.loadFiles(java.io.File(file.path))
-                        }
-                    }, onGitSelected = {
-                        if (file.isDirectory) {
-                            viewModel.selectGitRepo(java.io.File(file.path))
-                            onNavigateToGitPanel()
-                        }
-                    })
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                ) {
+                    items(files) { file ->
+                        FileRow(file = file, onClick = {
+                            if (file.isDirectory) {
+                                viewModel.loadFiles(java.io.File(file.path))
+                            }
+                        }, onGitSelected = {
+                            if (file.isDirectory) {
+                                viewModel.selectGitRepo(java.io.File(file.path))
+                                onNavigateToGitPanel()
+                            }
+                        })
+                    }
                 }
             }
         }
