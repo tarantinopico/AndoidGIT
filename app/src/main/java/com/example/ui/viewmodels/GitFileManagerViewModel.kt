@@ -7,7 +7,6 @@ import android.os.Environment
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.GitApplication
-import com.example.auth.GitHubAuthApi
 import com.example.auth.SessionManager
 import com.example.files.FileItem
 import com.example.files.FileManager
@@ -36,7 +35,6 @@ class GitFileManagerViewModel(application: Application) : AndroidViewModel(appli
     val sessionManager = container.sessionManager
     private val fileManager = container.fileManager
     private val gitManager = container.gitManager
-    private val api = container.gitHubAuthApi
 
     val patToken = sessionManager.patToken
 
@@ -54,9 +52,6 @@ class GitFileManagerViewModel(application: Application) : AndroidViewModel(appli
 
     private val _gitStatus = MutableStateFlow<String>("")
     val gitStatus: StateFlow<String> = _gitStatus.asStateFlow()
-
-    private val OAUTH_CLIENT_ID = "YOUR_CLIENT_ID_HERE"
-    private val OAUTH_CLIENT_SECRET = "YOUR_CLIENT_SECRET_HERE"
 
     init {
         loadFiles(_currentDirectory.value)
@@ -83,40 +78,6 @@ class GitFileManagerViewModel(application: Application) : AndroidViewModel(appli
     
     fun clearUiState() {
         _uiState.value = UiState.Idle
-    }
-
-    fun handleOAuthRedirect(intent: Intent) {
-        val uri = intent.data ?: return
-        if (uri.scheme == "gitfilemanager" && uri.host == "oauth2callback") {
-            val code = uri.getQueryParameter("code")
-            if (code != null) {
-                exchangeCodeForToken(code)
-            } else {
-                _uiState.value = UiState.Error("Failed to retrieve auth code")
-            }
-        }
-    }
-
-    private fun exchangeCodeForToken(code: String) {
-        _uiState.value = UiState.Loading
-        viewModelScope.launch {
-            try {
-                val response = api.getAccessToken(
-                    clientId = OAUTH_CLIENT_ID,
-                    clientSecret = OAUTH_CLIENT_SECRET,
-                    code = code,
-                    redirectUri = "gitfilemanager://oauth2callback"
-                )
-                if (response.accessToken != null) {
-                    sessionManager.saveToken(response.accessToken)
-                    _uiState.value = UiState.Success("OAuth login successful!")
-                } else {
-                    _uiState.value = UiState.Error(response.errorDescription ?: "Unknown error")
-                }
-            } catch (e: Exception) {
-                _uiState.value = UiState.Error(e.message ?: "Authentication failed")
-            }
-        }
     }
 
     fun selectGitRepo(directory: File) {

@@ -76,18 +76,9 @@ fun AuthScreen(
                 Text("Save Token & Continue")
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
-            Text("OR", style = MaterialTheme.typography.labelLarge)
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            OutlinedButton(
-                onClick = { launchGitHubOAuth(context) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Login with Browser (OAuth)")
-            }
+            Text("Tip: To get a token, go to GitHub -> Settings -> Developer Settings -> Personal access tokens (classic) -> Generate new token (enable 'repo' scopes).", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f))
 
             if (uiState is UiState.Loading) {
                 Spacer(modifier = Modifier.height(24.dp))
@@ -105,11 +96,4 @@ fun AuthScreen(
     }
 }
 
-private fun launchGitHubOAuth(context: Context) {
-    val clientId = "YOUR_CLIENT_ID_HERE" // Ideally loaded securely
-    val redirectUri = "gitfilemanager://oauth2callback"
-    val url = "https://github.com/login/oauth/authorize?client_id=$clientId&redirect_uri=$redirectUri&scope=repo"
-    
-    val intent = CustomTabsIntent.Builder().build()
-    intent.launchUrl(context, Uri.parse(url))
-}
+// GitHub OAuth functionality disabled because it requires registering an OAuth app manually context

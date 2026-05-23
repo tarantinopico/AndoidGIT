@@ -28,8 +28,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        viewModel.handleOAuthRedirect(intent)
-
         setContent {
             MyApplicationTheme {
                 Surface(
@@ -40,11 +38,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        viewModel.handleOAuthRedirect(intent)
     }
 }
 

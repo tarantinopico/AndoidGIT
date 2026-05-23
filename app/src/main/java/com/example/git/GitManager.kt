@@ -22,7 +22,7 @@ class GitManager {
             .setDirectory(directory)
 
         if (token.isNotEmpty()) {
-            cloneCommand.setCredentialsProvider(UsernamePasswordCredentialsProvider(token, ""))
+            cloneCommand.setCredentialsProvider(UsernamePasswordCredentialsProvider("token", token))
         }
 
         cloneCommand.call().use { }
@@ -39,7 +39,7 @@ class GitManager {
         Git.open(directory).use { git ->
             val pushCommand = git.push()
             if (token.isNotEmpty()) {
-                pushCommand.setCredentialsProvider(UsernamePasswordCredentialsProvider(token, ""))
+                pushCommand.setCredentialsProvider(UsernamePasswordCredentialsProvider("token", token))
             }
             pushCommand.call()
         }
@@ -49,7 +49,7 @@ class GitManager {
         Git.open(directory).use { git ->
             val pullCommand = git.pull()
             if (token.isNotEmpty()) {
-                pullCommand.setCredentialsProvider(UsernamePasswordCredentialsProvider(token, ""))
+                pullCommand.setCredentialsProvider(UsernamePasswordCredentialsProvider("token", token))
             }
             pullCommand.call()
         }
