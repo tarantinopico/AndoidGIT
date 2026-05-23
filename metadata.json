@@ -1,0 +1,6 @@
+{
+  "name": "Git File Manager",
+  "description": "A File Manager integrated with a full Git client.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
